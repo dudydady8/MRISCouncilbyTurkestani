@@ -4,7 +4,16 @@ export default async function VolunteerPage() {
   const supabase = await supabaseServer();
   const { data: opportunities } = await supabase.from("opportunities").select("*").order("date");
   const { data: leaderboard } = await supabase.from("leaderboard").select("*").limit(10);
-  const podium = leaderboard?.slice(0, 3) ?? [];
+  // If leaderboard rows reference students by id, resolve their names from the students table
+  const ids = (leaderboard ?? []).map((r: any) => r.student_id ?? r.studentId).filter(Boolean);
+  let studentsMap: Record<string, string> = {};
+  if (ids.length) {
+    const { data: students } = await supabase.from("students").select("id, student_name").in("id", ids);
+    studentsMap = (students ?? []).reduce((acc: Record<string, string>, s: any) => ({ ...acc, [s.id]: s.student_name }), {});
+  }
+  const leaderboardWithNames = (leaderboard ?? []).map((r: any) => ({ ...r, student_name: r.student_name ?? r.name ?? studentsMap[r.student_id ?? r.studentId] }));
+  const podium = leaderboardWithNames.slice(0, 3) ?? [];
+  const mappedPodium = [podium[1], podium[0], podium[2]];
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-14">
@@ -24,18 +33,23 @@ export default async function VolunteerPage() {
         ))}
       </section>
 
+      <section className="mt-6">
+        <h4 className="font-bold">Debug: leaderboard rows</h4>
+        <pre className="text-xs max-h-48 overflow-auto bg-slate-50 dark:bg-slate-900 p-3 rounded mt-2">{JSON.stringify(leaderboardWithNames, null, 2)}</pre>
+      </section>
+
       <section className="mt-16 card p-6">
         <h3 className="font-black uppercase text-blue-900 dark:text-blue-100">Leaderboard</h3>
         <p className="text-sm text-blue-700/70 dark:text-blue-300/70 mb-6">Top volunteers ranked by verified hours.</p>
 
         <div className="grid grid-cols-3 gap-2.5 items-end mb-6">
-          {[podium[1], podium[0], podium[2]].map((p, i) => p && (
-            <div key={p.student_name} className={`text-center border border-blue-100 dark:border-blue-900 rounded-2xl p-3.5 ${i === 1 ? "pt-5 pb-5 border-warn" : ""}`}>
+          {mappedPodium.map((p, i) => p && (
+            <div key={p?.student_name ?? `podium-${i}`} className={`text-center border border-blue-100 dark:border-blue-900 rounded-2xl p-3.5 ${i === 1 ? "pt-5 pb-5 border-warn" : ""}`}>
               <div className={`mx-auto mb-2 rounded-full grid place-items-center font-black text-white bg-blue-600 ${i === 1 ? "w-[54px] h-[54px] bg-gradient-to-br from-[#f7b500] to-[#ff8a00]" : "w-11 h-11"}`}>
-                {p.student_name[0]}
+                {p.student_name?.[0] ?? "?"}
               </div>
-              <div className="text-xs font-extrabold truncate">{p.student_name}</div>
-              <div className="text-lg font-black text-blue-600">{p.hours}</div>
+              <div className="text-xs font-extrabold truncate">{p.student_name ?? "Unknown"}</div>
+              <div className="text-lg font-black text-blue-600">{p.hours ?? 0}</div>
             </div>
           ))}
         </div>
@@ -47,12 +61,12 @@ export default async function VolunteerPage() {
             </tr>
           </thead>
           <tbody>
-            {leaderboard?.map((r, i) => (
-              <tr key={r.student_name + r.club_slug} className="border-b border-blue-100 dark:border-blue-900">
-                <td className="py-3">{i + 1}</td><td className="font-bold">{r.student_name}</td>
-                <td className="text-blue-700 dark:text-blue-300">{r.club_slug}</td><td className="font-black text-blue-600">{r.hours}</td>
-              </tr>
-            ))}
+            {leaderboardWithNames.map((r: any, i: number) => (
+                <tr key={(r.student_name ?? r.student_id ?? r.studentId) + (r.club_slug ?? "") + i} className="border-b border-blue-100 dark:border-blue-900">
+                  <td className="py-3">{i + 1}</td><td className="font-bold">{r.student_name ?? "Unknown"}</td>
+                  <td className="text-blue-700 dark:text-blue-300">{r.club_slug}</td><td className="font-black text-blue-600">{r.hours ?? 0}</td>
+                </tr>
+              ))}
           </tbody>
         </table>
       </section>

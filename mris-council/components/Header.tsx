@@ -23,7 +23,7 @@ export default function Header() {
           ))}
         </nav>
         <div className="flex items-center gap-1">
-          <Link href="/restricted" className="w-9 h-9 rounded-lg grid place-items-center text-blue-900 dark:text-blue-100 hover:bg-blue-50 dark:hover:bg-blue-900/30" title="Club login">🔒</Link>
+          <Link href="/council" className="w-9 h-9 rounded-lg grid place-items-center text-blue-900 dark:text-blue-100 hover:bg-blue-50 dark:hover:bg-blue-900/30" title="Club login">🔒</Link>
           <ThemeToggle />
         </div>
       </div>
